@@ -1,0 +1,7 @@
+[package]
+name = "pywarp"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+libwarp = {path = "../libwarp" }
