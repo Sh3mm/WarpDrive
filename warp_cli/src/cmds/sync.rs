@@ -2,52 +2,10 @@ use std::{io, io::{Read, Write}};
 use clap::Args;
 use libwarp::{
     action::{ErrorType, ActionType, Action, gen_action_list},
-    rclone::RClone, ledger::Ledger, configs::Config
+    rclone::{RClone}, ledger::Ledger, configs::Config
 };
 
 use crate::cmds::Cmd;
-
-fn handle_errors(actions: &mut Vec<Action>) {
-    let errors = actions.iter_mut().filter(|a| matches!(a.action, ActionType::Error(_)));
-    for error in errors {
-        println!("{} in file: {}", error.action,  error.path);
-        loop {
-            print!("\nkeep the REMOTE or LOCAL? (r/l): ");
-            io::stdout().flush().expect("");
-
-            let mut buffer: [u8; 1] = [0];
-            let res = io::stdin().read(&mut buffer);
-            if res.is_err() { continue; }
-
-            let input = buffer[0];
-            println!("{}", input);
-            match input {
-                0x6C => {
-                    // if the local action is chosen, and it was a deletion, the deletion needs to
-                    // be propagated to the remote
-                    error.action = if matches!(error.action, ActionType::Error(ErrorType::DelAndMod)) {
-                        ActionType::DelRemote
-                    } else { // otherwise, the local has a file and it needs to be copied to the remote
-                        ActionType::Local2Remote
-                    };
-                    break;
-                }
-                0x72 => {
-                    // if the remote action is chosen, and it was a deletion, the deletion needs to
-                    // be propagated to the local
-                    error.action = if matches!(error.action, ActionType::Error(ErrorType::ModAndDel)) {
-                        ActionType::DelLocal
-                    } else { // otherwise, the local has a file and it needs to be copied to the remote
-                        ActionType::Remote2Local
-                    };
-                    break;
-                }
-                _ => { continue; }
-            }
-        }
-    }
-}
-
 
 #[derive(Args)]
 pub struct CmdSync {
@@ -56,7 +14,15 @@ pub struct CmdSync {
 
     /// runs the steps in parallel
     #[arg(short, long, action=clap::ArgAction::SetFalse)]
-    parallel: bool
+    parallel: bool,
+
+    /// defines the thread count if run in parallel mode. does nothing otherwise
+    #[arg(short, long, default_value_t=4)]
+    thread_count: usize,
+
+    /// defines the number of element to put in a single rclone request if run in parallel mode. does nothing otherwise
+    #[arg(short, long)]
+    batch_size: Option<usize>
 }
 
 
@@ -73,20 +39,63 @@ impl Cmd for CmdSync {
         let mut actions = gen_action_list(&local, &remote, &ledger);
         println!("{:?}", actions);
 
-        handle_errors(&mut actions);
+        Self::handle_errors(&mut actions);
 
         match self.parallel {
-            true => { rclone.apply_actions_par(&actions); }
+            true => { rclone.apply_actions_par(&actions, 4, None); }
             false => { rclone.apply_actions(&actions); }
         }
 
         let new_ledger = ledger.updated_ledger(&actions);
         new_ledger.save(&config.link_path)
     }
+
 }
 
 impl CmdSync {
     pub fn new(name: &str) -> Self {
-        Self{ name: name.to_string(), parallel: false}
+        Self{ name: name.to_string(), parallel: false, thread_count: 4, batch_size: None}
     }
+
+    fn handle_errors(actions: &mut Vec<Action>) {
+        let errors = actions.iter_mut().filter(|a| matches!(a.action, ActionType::Error(_)));
+        for error in errors {
+            println!("{} in file: {}", error.action,  error.path);
+            loop {
+                print!("\nkeep the REMOTE or LOCAL? (r/l): ");
+                io::stdout().flush().expect("");
+
+                let mut buffer: [u8; 1] = [0];
+                let res = io::stdin().read(&mut buffer);
+                if res.is_err() { continue; }
+
+                let input = buffer[0];
+                println!("{}", input);
+                match input {
+                    0x6C => {
+                        // if the local action is chosen, and it was a deletion, the deletion needs to
+                        // be propagated to the remote
+                        error.action = if matches!(error.action, ActionType::Error(ErrorType::DelAndMod)) {
+                            ActionType::DelRemote
+                        } else { // otherwise, the local has a file and it needs to be copied to the remote
+                            ActionType::Local2Remote
+                        };
+                        break;
+                    }
+                    0x72 => {
+                        // if the remote action is chosen, and it was a deletion, the deletion needs to
+                        // be propagated to the local
+                        error.action = if matches!(error.action, ActionType::Error(ErrorType::ModAndDel)) {
+                            ActionType::DelLocal
+                        } else { // otherwise, the local has a file and it needs to be copied to the remote
+                            ActionType::Remote2Local
+                        };
+                        break;
+                    }
+                    _ => { continue; }
+                }
+            }
+        }
+    }
+
 }

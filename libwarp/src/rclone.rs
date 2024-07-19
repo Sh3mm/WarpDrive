@@ -34,10 +34,10 @@ pub struct RClone {
     remote: String
 }
 
-pub enum BatchSize {
+/*pub enum BatchSize {
     None,
     Size(usize)
-}
+}*/
 
 impl RClone {
     pub fn new(local: &str, remote: &str) -> Self {
@@ -61,12 +61,12 @@ impl RClone {
         return map;
     }
 
-    fn batch_actions(actions: HashMap<ActionType, Vec<String>>, size: BatchSize) -> HashMap<(ActionType, usize), Vec<String>> {
+    fn batch_actions(actions: HashMap<ActionType, Vec<String>>, size: Option<usize>) -> HashMap<(ActionType, usize), Vec<String>> {
         let mut new_map = HashMap::new();
         actions.iter().for_each(|(k, v)|{
             match size {
-                BatchSize::None => { new_map.insert((k.clone(), 0), v.clone());  }
-                BatchSize::Size(i) => {
+                None => { new_map.insert((k.clone(), 0), v.clone());  }
+                Some(i) => {
                     v.chunks(i).enumerate().for_each(|(i, v)|{
                         new_map.insert((k.clone(), i), Vec::from(v));
                     });
@@ -91,11 +91,11 @@ impl RClone {
         }).unwrap();
     }
 
-    pub fn apply_actions_par(&self, actions: &Vec<Action>) {
-        rayon::ThreadPoolBuilder::new().num_threads(4).build_global().unwrap();
+    pub fn apply_actions_par(&self, actions: &Vec<Action>, thread_nb: usize, batch_size: Option<usize>) {
+        rayon::ThreadPoolBuilder::new().num_threads(thread_nb).build_global().unwrap();
 
         let actions = Self::sort_actions(actions);
-        let actions = Self::batch_actions(actions, BatchSize::None);
+        let actions = Self::batch_actions(actions, batch_size);
         let lazy_result = actions.par_iter().map(
             |((a, _), list)| self.execute(a, list)
         );
