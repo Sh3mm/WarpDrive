@@ -82,6 +82,9 @@ fn create_file_map(l1: &Vec<RFileInfo>, l2: &Vec<RFileInfo>) -> HashMap<String, 
 
     let mut map = HashMap::new();
     for (i, v) in list_chain {
+        // filters out folders
+        if v.is_dir { continue; }
+
         let mut pair: [Option<OffsetDateTime>; 2] = map.get_mut(&v.path).unwrap_or(&mut [None, None]).clone();
         pair[i] = Some(v.mod_time);
         map.insert(v.path.clone(), pair);

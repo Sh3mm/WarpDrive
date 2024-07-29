@@ -1,10 +1,14 @@
 use std::collections::HashSet;
+use std::env;
 use std::path::{Path, PathBuf};
 use std::fs::{create_dir_all, File, read_dir};
 use serde::{Deserialize, Serialize};
 
 fn get_config_path() -> PathBuf {
-    return Path::new("./configs").canonicalize().expect("Error getting config path");
+    #[allow(deprecated)]
+    let config_path = env::home_dir().unwrap().canonicalize().unwrap().join(".config/warpcli");
+    create_dir_all(&config_path).expect("Unable to create configs folder");
+    return config_path.canonicalize().expect("Error getting config path");
 }
 
 #[derive(Deserialize, Serialize)]
@@ -39,7 +43,7 @@ impl Config {
         let path = get_config_path().join(name).join("info.json");
 
         let config: Config =  serde_json::from_reader(
-            File::open(&path).unwrap()
+            File::open(&path).unwNo such file or directory" rap()
         ).expect("Error while reading link info");
 
         return config

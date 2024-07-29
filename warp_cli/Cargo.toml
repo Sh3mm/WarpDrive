@@ -10,3 +10,4 @@ clap = {version = "4.5.7", features = ["derive"]}
 librclone = "0.8"
 libwarp = {path = "../libwarp" }
 time = "0.3.36"
+termion = "4.0"

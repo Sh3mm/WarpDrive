@@ -3,6 +3,7 @@ use serde::Deserialize;
 use serde_json::json;
 use rayon::prelude::*;
 use time::OffsetDateTime;
+use std::sync::mpsc::{Sender};
 use crate::action::{Action, ActionType};
 
 
@@ -34,10 +35,6 @@ pub struct RClone {
     remote: String
 }
 
-/*pub enum BatchSize {
-    None,
-    Size(usize)
-}*/
 
 impl RClone {
     pub fn new(local: &str, remote: &str) -> Self {
@@ -77,10 +74,10 @@ impl RClone {
         return new_map;
     }
 
-    pub fn apply_actions(&self, actions: &Vec<Action>) {
+    pub fn apply_actions(&self, actions: &Vec<Action>, pipe: Option<Sender<(bool, String)>>) {
         let actions = Self::sort_actions(actions);
         let lazy_result = actions.iter().map(
-            |(a, list)| self.execute(a, list)
+            |(a, list)| self.execute(a, list, &pipe)
         );
 
         lazy_result.fold(Ok(()), |acc, r| {
@@ -91,13 +88,14 @@ impl RClone {
         }).unwrap();
     }
 
-    pub fn apply_actions_par(&self, actions: &Vec<Action>, thread_nb: usize, batch_size: Option<usize>) {
+    pub fn apply_actions_par(&self, actions: &Vec<Action>, pipe: Option<Sender<(bool, String)>>, thread_nb: usize, batch_size: Option<usize>) {
         rayon::ThreadPoolBuilder::new().num_threads(thread_nb).build_global().unwrap();
 
         let actions = Self::sort_actions(actions);
         let actions = Self::batch_actions(actions, batch_size);
+        println!("{:?}", actions);
         let lazy_result = actions.par_iter().map(
-            |((a, _), list)| self.execute(a, list)
+            |((a, _), list)| self.execute(a, list, &pipe)
         );
 
         lazy_result.reduce(|| Ok("".to_string()), |acc, r| {
@@ -112,10 +110,18 @@ impl RClone {
 
     pub fn remote_list(&self) -> Vec<RFileInfo> { Self::get_file_list(&self.remote) }
 
-    fn execute(&self, a: &ActionType, list: &Vec<String>) -> Result<String, String> {
+    fn execute(&self, a: &ActionType, list: &Vec<String>, pipe: &Option<Sender<(bool, String)>>) -> Result<String, String> {
         if a == &ActionType::Nothing { return Ok("Noting to do".to_string()); }
 
-        println!("starting {}", a);
+        // sending to pipe starting signal for files
+        match &pipe {
+            None => {}
+            Some(tx) => {
+                list.iter().for_each( |s| tx.send((true, s.clone())).expect("Error while sending update") )
+            }
+        }
+
+        // doing necessary action
         let res = match a {
             ActionType::DelLocal =>     { RClone::delete_files(&self.local, list) }
             ActionType::DelRemote =>    { RClone::delete_files(&self.remote, list) }
@@ -123,7 +129,14 @@ impl RClone {
             ActionType::Remote2Local => { RClone::copy_files(&self.remote, &self.local, list) }
             _ => { Err(format!("An unexpected ActionType found during resolution ({a}). ").to_string()) }
         };
-        println!("finished {}", a);
+
+        // sending to pipe ending signal for files
+        match &pipe {
+            None => {}
+            Some(tx) => {
+                list.iter().for_each( |s| tx.send((false, s.clone())).expect("Error while sending update") )
+            }
+        }
 
         return res;
     }
@@ -141,15 +154,13 @@ impl RClone {
     }
 
     fn copy_files(from: &str, to: &str, files: &Vec<String>) -> Result<String, String> {
-        let x = librclone::rpc("libwarp/copy",
+        librclone::rpc("sync/copy",
             json!({
                 "srcFs": from, "dstFs": to,
                 "_filter": { "IncludeRule": files },
                 "_config": {"NoCheckDest": true}
             }).to_string()
-        );
-        println!("{:?}", x);
-        x
+        )
     }
 
     fn delete_files(from: &str, files: &Vec<String>) -> Result<String, String> {
@@ -161,9 +172,3 @@ impl RClone {
         )
     }
 }
-
-//  todo 1: make a python binding for the libwarp library
-//   Create a new project?
-
-//  todo 2: Add a message transmission object
-//   https://doc.rust-lang.org/book/ch16-02-message-passing.html

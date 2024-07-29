@@ -22,7 +22,6 @@ impl Ledger {
 
     pub fn load(link_path: &str) -> Self {
         let path = Path::new(link_path).join("ledger.json");
-        println!("{:?}", path);
 
         let ledger: Ledger =  serde_json::from_reader(
             File::open(&path).unwrap()
