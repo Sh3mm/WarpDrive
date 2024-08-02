@@ -30,6 +30,7 @@ pub struct RFileInfo {
 }
 
 
+#[derive(Clone)]
 pub struct RClone {
     local: String,
     remote: String

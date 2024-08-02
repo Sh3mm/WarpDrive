@@ -1,5 +1,5 @@
 use clap::Args;
-use libwarp::configs::{Config};
+use warp::configs::{Config};
 
 use crate::cmds::Cmd;
 

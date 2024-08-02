@@ -2,7 +2,7 @@ use clap::Args;
 use crate::cmds::Cmd;
 use crate::cmds::CmdSync;
 
-use libwarp::{ledger::Ledger, configs::Config};
+use warp::{ledger::Ledger, configs::Config};
 
 #[derive(Args)]
 pub struct CmdCreate {
@@ -13,7 +13,7 @@ pub struct CmdCreate {
     /// local path of the link (ex: ~/location/). The default value is the curent folder
     #[arg(short, long, default_value="./")]
     local: String,
-    /// If not set, the creation will also manually libwarp the folders
+    /// If not set, the creation will also manually warp the folders
     #[arg(short, long, action=clap::ArgAction::SetTrue)]
     no_sync: bool
 }

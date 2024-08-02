@@ -1,5 +1,5 @@
 use clap::Args;
-use libwarp::configs::Config;
+use warp::configs::Config;
 use std::fs::remove_dir_all;
 
 use crate::cmds::Cmd;
@@ -10,7 +10,7 @@ pub struct CmdDelete {
     name: String,
 
     /// Use With Caution: Removes the local folder and all files in it
-    #[arg(long, action=clap::ArgAction::SetFalse)]
+    #[arg(long, action=clap::ArgAction::SetTrue)]
     clean: bool
 }
 

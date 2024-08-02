@@ -3,12 +3,13 @@ use std::io::stdout;
 use clap::Args;
 use std::sync::mpsc;
 use std::thread;
+use std::thread::JoinHandle;
+use std::time::Duration;
 use termion::{clear, cursor};
-use libwarp::{
+use warp::{
     action::{ErrorType, ActionType, Action, gen_action_list},
-    rclone::{RClone}, ledger::Ledger, configs::Config
+    rclone::{RClone, RFileInfo}, ledger::Ledger, configs::Config
 };
-
 use crate::cmds::Cmd;
 
 #[derive(Args)]
@@ -39,7 +40,12 @@ impl Cmd for CmdSync {
         let rclone = RClone::new(&config.local, &config.remote);
 
         let local =  rclone.local_list();
-        let remote = rclone.remote_list();
+
+        let _rclone = rclone.clone();
+        let remote_future = thread::spawn(move || _rclone.remote_list());
+        Self::wait_for_remote(&remote_future);
+
+        let remote = remote_future.join().unwrap();
 
         let mut actions = gen_action_list(&local, &remote, &ledger);
 
@@ -57,12 +63,13 @@ impl Cmd for CmdSync {
             }
         });
 
-        let mut done: usize = 0;
+        // getting the total number of steps to take
         let total : usize = 2 * actions.iter().filter(|a| a.action != ActionType::Nothing).count();
+        let mut steps: usize = 0;
         for (state, file) in rx {
-            done += 1;
-            Self::print(state, file, done, total);
-            if done == total { break; }
+            steps += 1;
+            Self::update_cli(state, file, steps, total);
+            if steps == total { break; }
         }
 
         rclone.join().unwrap();
@@ -118,7 +125,7 @@ impl CmdSync {
         }
     }
 
-    fn print(state: bool, name: String, done: usize, total: usize) {
+    fn update_cli(state: bool, name: String, done: usize, total: usize) {
         let (c, r) = termion::terminal_size().unwrap();
 
         let prefix = match state { true => "starting", false => "finished" };
@@ -130,5 +137,17 @@ impl CmdSync {
 
         print!("{}[{: <percent_space$}] {:0>3}% ", cursor::Goto(1, r), format!("{:#>prc_progress$}", ""), percent);
         stdout().flush().unwrap();
+    }
+
+    fn wait_for_remote(remote_future: &JoinHandle<Vec<RFileInfo>>) {
+        let mut state = "|";
+
+        print!("getting remote file list. This may take a while... |");
+        while !remote_future.is_finished() {
+            state = match state { "|" => "/", "/" => "-",  "-" => "\\",  "\\" => "|",  _ => "|" };
+            print!("{}{}", cursor::Left(1), state);
+            stdout().flush().unwrap();
+            thread::sleep(Duration::from_millis(750))
+        }
     }
 }

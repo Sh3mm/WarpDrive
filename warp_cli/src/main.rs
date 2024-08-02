@@ -19,7 +19,7 @@ enum Commands {
     Delete(CmdDelete),
     /// Lists existing links
     List(CmdList),
-    /// manually libwarp a link
+    /// manually syncs a link
     Sync(CmdSync)
 }
 
