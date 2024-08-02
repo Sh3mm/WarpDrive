@@ -144,7 +144,7 @@ pub fn gen_action_list(local: &Vec<RFileInfo>, remote: &Vec<RFileInfo>, ledger: 
     return file_map.iter().map(
         |(p, times)| Action::from(p ,&times[0], &times[1], &ledger)
     ).collect::<Vec<Action>>()
-}gen_action_list
+}
 
 fn create_file_map(l1: &Vec<RFileInfo>, l2: &Vec<RFileInfo>) -> HashMap<String, [Option<OffsetDateTime>; 2]> {
     let list_chain = Iterator::chain(
