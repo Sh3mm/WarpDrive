@@ -14,7 +14,7 @@ pub struct CmdCreate {
     #[arg(short, long, default_value="./")]
     local: String,
     /// If not set, the creation will also manually libwarp the folders
-    #[arg(short, long, action=clap::ArgAction::SetFalse)]
+    #[arg(short, long, action=clap::ArgAction::SetTrue)]
     no_sync: bool
 }
 
