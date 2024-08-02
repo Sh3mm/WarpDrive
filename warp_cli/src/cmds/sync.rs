@@ -5,7 +5,7 @@ use std::sync::mpsc;
 use std::thread;
 use std::thread::JoinHandle;
 use std::time::Duration;
-use termion::{clear, cursor};
+use termion::{clear, cursor, color};
 use warp::{
     action::{ErrorType, ActionType, Action, gen_action_list},
     rclone::{RClone, RFileInfo}, ledger::Ledger, configs::Config
@@ -131,11 +131,18 @@ impl CmdSync {
         let prefix = match state { true => "starting", false => "finished" };
         println!("{}{}{} {}", cursor::Goto(1, r), clear::CurrentLine, prefix, name);
 
-        let percent_space = usize::from(c - 8);
+        let percent_space = usize::from(c - 17);
         let prc_progress = (done * percent_space) / total;
         let percent = (done * 100) / total;
 
-        print!("{}[{: <percent_space$}] {:0>3}% ", cursor::Goto(1, r), format!("{:#>prc_progress$}", ""), percent);
+        print!(
+            "{}{}{} Progress:{: >3}%{}{} [{: <percent_space$}]",
+            cursor::Goto(1, r),
+            color::Fg(color::Black), color::Bg(color::Green),
+            percent,
+            color::Fg(color::Reset), color::Bg(color::Reset),
+            format!("{:#>prc_progress$}", "")
+        );
         stdout().flush().unwrap();
     }
 

@@ -145,10 +145,11 @@ impl RClone {
     fn get_file_list(fs: &str) -> Vec<RFileInfo> {
         let res = librclone::rpc("operations/list",
             json!({
-            "fs": fs, "remote": "",
-            "opt": { "recurse": true },
-            // "_filter": { "files-from-raw": [] }
-        }).to_string());
+                "fs": fs, "remote": "",
+                "opt": { "recurse": true },
+                "_config": {"fastList": true}
+            }).to_string()
+        );
 
         let res: RListResult = serde_json::from_str(&res.unwrap()).unwrap();
         return res.list;

@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 librclone = "0.8"
-serde_json = "1.0.117"
-serde = { version = "1.0.203", features = ["derive"] }
-time = { version = "0.3.36", features = ["serde-well-known", "macros"] }
-rayon = "1.10.0"
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+time = { version = "0.3", features = ["serde-well-known", "macros"] }
+rayon = "1.10"
