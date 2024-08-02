@@ -43,7 +43,7 @@ impl Config {
         let path = get_config_path().join(name).join("info.json");
 
         let config: Config =  serde_json::from_reader(
-            File::open(&path).unwNo such file or directory" rap()
+            File::open(&path).unwrap()
         ).expect("Error while reading link info");
 
         return config
