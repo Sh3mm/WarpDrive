@@ -35,6 +35,10 @@ impl Cmd for CmdSync {
     fn execute(&self) {
         let (tx, rx) = mpsc::channel();
         let config = Config::load(&self.name);
+
+        if config.is_err() { println!("Invalid name: '{}'", &self.name); return;}
+        let config = config.unwrap();
+
         let ledger = Ledger::load(&config.link_path);
 
         let rclone = RClone::new(&config.local, &config.remote);

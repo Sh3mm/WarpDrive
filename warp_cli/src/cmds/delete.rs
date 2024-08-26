@@ -1,7 +1,6 @@
 use clap::Args;
 use warp::configs::Config;
 use std::fs::remove_dir_all;
-
 use crate::cmds::Cmd;
 
 #[derive(Args)]
@@ -19,10 +18,10 @@ impl Cmd for CmdDelete {
     fn execute(&self) {
         let config = Config::load(&self.name);
 
-        remove_dir_all(config.link_path).unwrap();
+        if config.is_err() { println!("Invalid name: '{}'", &self.name); return;}
+        let config = config.unwrap();
 
-        if self.clean {
-            remove_dir_all(config.local).unwrap();
-        }
+        remove_dir_all(config.link_path).unwrap();
+        if self.clean { remove_dir_all(config.local).unwrap(); }
     }
 }

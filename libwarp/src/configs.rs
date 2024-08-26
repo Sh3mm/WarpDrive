@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::env;
 use std::path::{Path, PathBuf};
 use std::fs::{create_dir_all, File, read_dir};
+use std::io::{Error};
 use serde::{Deserialize, Serialize};
 
 fn get_config_path() -> PathBuf {
@@ -39,14 +40,14 @@ impl Config {
         }
     }
 
-    pub fn load(name: &str) -> Self {
+    pub fn load(name: &str) -> Result<Self, Error> {
         let path = get_config_path().join(name).join("info.json");
 
-        let config: Config =  serde_json::from_reader(
-            File::open(&path).unwrap()
-        ).expect("Error while reading link info");
+        let config: Config = serde_json::from_reader(
+            File::open(&path)?
+        )?;
 
-        return config
+        return Ok(config)
     }
 
     pub fn save(self) {
