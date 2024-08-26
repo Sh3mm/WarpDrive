@@ -5,3 +5,4 @@ edition = "2021"
 
 [dependencies]
 warp = {path = "../libwarp" }
+pyo3 = { version = "0.22.2", features = ["extension-module"] }
