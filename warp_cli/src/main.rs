@@ -13,13 +13,13 @@ struct Warp {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Creates a link between a local folder and a remote
+    /// Creates a config between a local folder and a remote
     Create(CmdCreate),
-    /// Deletes an existing link
+    /// Deletes an existing config
     Delete(CmdDelete),
-    /// Lists existing links
+    /// Lists existing configs
     List(CmdList),
-    /// manually syncs a link
+    /// syncs a config
     Sync(CmdSync)
 }
 

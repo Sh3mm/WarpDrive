@@ -6,14 +6,14 @@ use warp::{ledger::Ledger, configs::Config};
 
 #[derive(Args)]
 pub struct CmdCreate {
-    /// Name of the link to create
+    /// Name of the config to create
     name: String,
-    /// remote rclone path of the link (ex: remote:/location/)
+    /// remote rclone path for the config (ex: remote:/location/)
     remote: String,
-    /// local path of the link (ex: ~/location/). The default value is the curent folder
+    /// local path for the link config (ex: ~/location/). The default value is the curent folder
     #[arg(short, long, default_value="./")]
     local: String,
-    /// If not set, the creation will also manually warp the folders
+    /// If not set, the creation will also automatically sync
     #[arg(short, long, action=clap::ArgAction::SetTrue)]
     no_sync: bool
 }

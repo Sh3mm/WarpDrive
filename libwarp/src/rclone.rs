@@ -75,21 +75,7 @@ impl RClone {
         return new_map;
     }
 
-    pub fn apply_actions(&self, actions: &Vec<Action>, pipe: Option<Sender<(bool, String)>>) {
-        let actions = Self::sort_actions(actions);
-        let lazy_result = actions.iter().map(
-            |(a, list)| self.execute(a, list, &pipe)
-        );
-
-        lazy_result.fold(Ok(()), |acc, r| {
-            if r.is_ok() && acc.is_ok() { return Ok(()); }
-            if r.is_ok() && acc.is_err() { return acc; }
-            if r.is_err() && acc.is_ok() { return Err(r.err().unwrap()); }
-            else { Err(format!("{}\n{}", r.err().unwrap(), acc.err().unwrap()) ) }
-        }).unwrap();
-    }
-
-    pub fn apply_actions_par(&self, actions: &Vec<Action>, pipe: Option<Sender<(bool, String)>>, thread_nb: usize, batch_size: Option<usize>) {
+    pub fn apply_actions(&self, actions: &Vec<Action>, pipe: Option<Sender<(bool, String)>>, thread_nb: usize, batch_size: Option<usize>) {
         rayon::ThreadPoolBuilder::new().num_threads(thread_nb).build_global().unwrap();
 
         let actions = Self::sort_actions(actions);

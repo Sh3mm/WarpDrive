@@ -14,14 +14,10 @@ use crate::cmds::Cmd;
 
 #[derive(Args)]
 pub struct CmdSync {
-    /// Name of the link to synchronize
+    /// Name of the config to synchronize
     name: String,
 
-    /// runs the steps in parallel
-    #[arg(short, long, action=clap::ArgAction::SetTrue)]
-    parallel: bool,
-
-    /// defines the thread count if run in parallel mode. does nothing otherwise
+    /// defines the thread count
     #[arg(short, long, default_value_t=4)]
     thread_count: usize,
 
@@ -56,15 +52,11 @@ impl Cmd for CmdSync {
         Self::handle_errors(&mut actions);
 
         let _actions = actions.clone();
-        let parallel = self.parallel.clone();
         let batch_size = self.batch_size.clone();
         let thread_count = self.thread_count.clone();
 
         let rclone = thread::spawn(move || {
-            match parallel {
-                true => { rclone.apply_actions_par(&_actions, Some(tx), thread_count, batch_size); }
-                false => { rclone.apply_actions(&_actions, Some(tx)); }
-            }
+            rclone.apply_actions(&_actions, Some(tx), thread_count, batch_size);
         });
 
         // getting the total number of steps to take
@@ -81,12 +73,11 @@ impl Cmd for CmdSync {
         let new_ledger = ledger.updated_ledger(&actions);
         new_ledger.save(&config.link_path)
     }
-
 }
 
 impl CmdSync {
     pub fn new(name: &str) -> Self {
-        Self{ name: name.to_string(), parallel: false, thread_count: 4, batch_size: None}
+        Self{ name: name.to_string(), thread_count: 4, batch_size: None}
     }
 
     fn handle_errors(actions: &mut Vec<Action>) {

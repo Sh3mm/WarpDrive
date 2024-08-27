@@ -5,7 +5,7 @@ use crate::cmds::Cmd;
 
 #[derive(Args)]
 pub struct CmdDelete {
-    /// Name of the link to delete
+    /// Name of the config to delete
     name: String,
 
     /// Use With Caution: Removes the local folder and all files in it
