@@ -80,7 +80,6 @@ impl RClone {
 
         let actions = Self::sort_actions(actions);
         let actions = Self::batch_actions(actions, batch_size);
-        println!("{:?}", actions);
         let lazy_result = actions.par_iter().map(
             |((a, _), list)| self.execute(a, list, &pipe)
         );
