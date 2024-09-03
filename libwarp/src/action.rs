@@ -67,8 +67,7 @@ impl Action {
     }
 
     fn from(path: &String, local: &Option<OffsetDateTime>, remote: &Option<OffsetDateTime>, ledger: &Ledger) -> Self {
-        let last_update = &ledger.update_time;
-        match ledger.path_set.get(path) {
+        match ledger.path_map.get(path) {
             // The ledger does not hold the file. This means it's new and should be added to the right destination
             // unless there are conflicting new files
             None => {
@@ -88,7 +87,8 @@ impl Action {
                 else { panic!("Impossible scenario where a file exists but appears nowhere: \"{path}\"") }
             }
             // The ledger hold the file. This mean the action must be decided by comparing update times
-            Some(_) => {
+            Some(info) => {
+                let last_update = &info.last_update;
                 // No local
                 if local.is_none() {
                     let unwrap_remote = remote.unwrap();

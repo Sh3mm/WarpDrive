@@ -59,13 +59,13 @@ impl RClone {
         return map;
     }
 
-    fn batch_actions(actions: HashMap<ActionType, Vec<String>>, size: Option<usize>) -> HashMap<(ActionType, usize), Vec<String>> {
+    fn batch_actions(actions: HashMap<ActionType, Vec<String>>, size: usize) -> HashMap<(ActionType, usize), Vec<String>> {
         let mut new_map = HashMap::new();
         actions.iter().for_each(|(k, v)|{
             match size {
-                None => { new_map.insert((k.clone(), 0), v.clone());  }
-                Some(i) => {
-                    v.chunks(i).enumerate().for_each(|(i, v)|{
+                0 => { new_map.insert((k.clone(), 0), v.clone());  }
+                _ => {
+                    v.chunks(size).enumerate().for_each(|(i, v)|{
                         new_map.insert((k.clone(), i), Vec::from(v));
                     });
                 }
@@ -75,7 +75,7 @@ impl RClone {
         return new_map;
     }
 
-    pub fn apply_actions(&self, actions: &Vec<Action>, pipe: Option<Sender<(bool, String)>>, thread_nb: usize, batch_size: Option<usize>) {
+    pub fn apply_actions(&self, actions: &Vec<Action>, pipe: Option<Sender<(bool, String, ActionType)>>, thread_nb: usize, batch_size: usize) {
         rayon::ThreadPoolBuilder::new().num_threads(thread_nb).build_global().unwrap();
 
         let actions = Self::sort_actions(actions);
@@ -96,15 +96,12 @@ impl RClone {
 
     pub fn remote_list(&self) -> Vec<RFileInfo> { Self::get_file_list(&self.remote) }
 
-    fn execute(&self, a: &ActionType, list: &Vec<String>, pipe: &Option<Sender<(bool, String)>>) -> Result<String, String> {
+    fn execute(&self, a: &ActionType, list: &Vec<String>, pipe: &Option<Sender<(bool, String, ActionType)>>) -> Result<String, String> {
         if a == &ActionType::Nothing { return Ok("Noting to do".to_string()); }
 
         // sending to pipe starting signal for files
-        match &pipe {
-            None => {}
-            Some(tx) => {
-                list.iter().for_each( |s| tx.send((true, s.clone())).expect("Error while sending update") )
-            }
+        if let Some(tx) = &pipe {
+            list.iter().for_each( |s| tx.send((true, s.clone(), a.clone())).expect("Error while sending update"))
         }
 
         // doing necessary action
@@ -117,11 +114,8 @@ impl RClone {
         };
 
         // sending to pipe ending signal for files
-        match &pipe {
-            None => {}
-            Some(tx) => {
-                list.iter().for_each( |s| tx.send((false, s.clone())).expect("Error while sending update") )
-            }
+        if let Some(tx) = &pipe {
+            list.iter().for_each( |s| tx.send((false, s.clone(), a.clone())).expect("Error while sending update"))
         }
 
         return res;
