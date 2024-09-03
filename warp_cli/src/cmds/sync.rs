@@ -1,5 +1,6 @@
 use std::{io, io::{Read, Write}};
-use std::io::stdout;
+use std::io::{stdout, Error, ErrorKind};
+use std::path::Path;
 use clap::Args;
 use std::sync::mpsc;
 use std::thread;
@@ -15,7 +16,7 @@ use crate::cmds::Cmd;
 #[derive(Args)]
 pub struct CmdSync {
     /// Name of the config to synchronize
-    name: String,
+    name: Option<String>,
 
     /// defines the thread count
     #[arg(short, long, default_value_t=4)]
@@ -30,9 +31,16 @@ pub struct CmdSync {
 impl Cmd for CmdSync {
     fn execute(&self) {
         let (tx, rx) = mpsc::channel();
-        let config = Config::load(&self.name);
+        let config = Self::get_config(&self.name);
 
-        if config.is_err() { println!("Invalid name: '{}'", &self.name); return;}
+        if config.is_err() {
+            match &self.name {
+                None => { println!("Invalid location.\nPlease specify a config name or be in an existing config location"); return;}
+                Some(name) => { println!("Invalid config name: '{}'", name); return;}
+            }
+        }
+
+
         let config = config.unwrap();
 
         let ledger = Ledger::load(&config.link_path);
@@ -77,7 +85,7 @@ impl Cmd for CmdSync {
 
 impl CmdSync {
     pub fn new(name: &str) -> Self {
-        Self{ name: name.to_string(), thread_count: 4, batch_size: None}
+        Self{ name: Some(name.to_string()), thread_count: 4, batch_size: None}
     }
 
     fn handle_errors(actions: &mut Vec<Action>) {
@@ -150,6 +158,26 @@ impl CmdSync {
             print!("{}{}", cursor::Left(1), state);
             stdout().flush().unwrap();
             thread::sleep(Duration::from_millis(750))
+        }
+    }
+
+    fn get_config(name: &Option<String>) -> Result<Config, Error> {
+        // if the config name is given try loading it
+        if name.is_some() {
+            return Config::load(name.as_deref().unwrap());
+        }
+
+        // otherwise check if current path is in a config
+        let names = Config::get_all_names();
+        let name = names.iter().find(|name|{
+            let config = Config::load(name).unwrap();
+            let local_path = Path::new("./").canonicalize().unwrap();
+            return  local_path.to_str() == Some(&config.local);
+        });
+
+        return match name {
+            None => Err(Error::new(ErrorKind::NotFound, "Folder not found")),
+            Some(name) => Config::load(name)
         }
     }
 }
