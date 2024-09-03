@@ -17,26 +17,24 @@ pub struct CmdSync {
     /// Name of the config to synchronize
     name: String,
 
-    /// defines the thread count
+    /// Defines the thread count
     #[arg(short, long, default_value_t=4)]
     thread_count: usize,
 
-    /// defines the number of element to put in a single rclone request if run in parallel mode. does nothing otherwise
-    #[arg(short, long)]
-    batch_size: Option<usize>
+    /// Defines the number of element to put in a single rclone request if run in parallel mode.
+    /// If 0 the maximum batch size will be used
+    #[arg(short, long, default_value_t=8)]
+    batch_size: usize
 }
 
 
 impl Cmd for CmdSync {
     fn execute(&self) {
-        let (tx, rx) = mpsc::channel();
         let config = Config::load(&self.name);
-
         if config.is_err() { println!("Invalid name: '{}'", &self.name); return;}
         let config = config.unwrap();
 
-        let ledger = Ledger::load(&config.link_path);
-
+        let mut ledger = Ledger::load(&config.link_path);
         let rclone = RClone::new(&config.local, &config.remote);
 
         let local =  rclone.local_list();
@@ -44,17 +42,16 @@ impl Cmd for CmdSync {
         let _rclone = rclone.clone();
         let remote_future = thread::spawn(move || _rclone.remote_list());
         Self::wait_for_remote(&remote_future);
-
         let remote = remote_future.join().unwrap();
 
         let mut actions = gen_action_list(&local, &remote, &ledger);
-
         Self::handle_errors(&mut actions);
 
         let _actions = actions.clone();
         let batch_size = self.batch_size.clone();
         let thread_count = self.thread_count.clone();
 
+        let (tx, rx) = mpsc::channel();
         let rclone = thread::spawn(move || {
             rclone.apply_actions(&_actions, Some(tx), thread_count, batch_size);
         });
@@ -62,22 +59,25 @@ impl Cmd for CmdSync {
         // getting the total number of steps to take
         let total : usize = 2 * actions.iter().filter(|a| a.action != ActionType::Nothing).count();
         let mut steps: usize = 0;
-        for (state, file) in rx {
+        for (state, file, action_type) in rx {
+            ledger.update_ledger(&file, action_type);
+            ledger.save(&config.link_path);
+
             steps += 1;
-            Self::update_cli(state, file, steps, total);
+            Self::update_cli(state, &file, steps, total);
             if steps == total { break; }
         }
 
         rclone.join().unwrap();
         
-        let new_ledger = ledger.updated_ledger(&actions);
+        let new_ledger = Ledger::ledger_from(&actions);
         new_ledger.save(&config.link_path)
     }
 }
 
 impl CmdSync {
     pub fn new(name: &str) -> Self {
-        Self{ name: name.to_string(), thread_count: 4, batch_size: None}
+        Self{ name: name.to_string(), thread_count: 4, batch_size: 8}
     }
 
     fn handle_errors(actions: &mut Vec<Action>) {
@@ -120,7 +120,7 @@ impl CmdSync {
         }
     }
 
-    fn update_cli(state: bool, name: String, done: usize, total: usize) {
+    fn update_cli(state: bool, name: &str, done: usize, total: usize) {
         let (c, r) = termion::terminal_size().unwrap();
 
         let prefix = match state { true => "starting", false => "finished" };

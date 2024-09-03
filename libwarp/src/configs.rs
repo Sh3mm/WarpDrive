@@ -30,6 +30,7 @@ impl Config {
 
     pub fn new(name: &str, local: &str, remote: &str, update_rt: usize) -> Self {
         let config_path = get_config_path().join(name);
+        // todo: change to a proper print instead of an error message
         let local_path = Path::new(local).canonicalize().expect("Local path does not exist");
 
         return Config {
